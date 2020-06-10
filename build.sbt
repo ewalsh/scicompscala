@@ -13,5 +13,8 @@ libraryDependencies ++= Seq(
     "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
     "com.typesafe.slick" %% "slick" % "3.3.1",
     "com.typesafe.slick" %% "slick-hikaricp" % "3.3.1",
-    "org.slf4j" % "slf4j-nop" % "1.7.26"
+    "org.slf4j" % "slf4j-nop" % "1.7.26",
+    "org.scalanlp" %% "breeze" % "1.0",
+    "org.scalanlp" %% "breeze-natives" % "1.0",
+    "org.scalanlp" %% "breeze-viz" % "1.0"
 )
