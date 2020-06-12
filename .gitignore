@@ -3,3 +3,5 @@
 .metals
 null
 target
+*.class
+*.jar
