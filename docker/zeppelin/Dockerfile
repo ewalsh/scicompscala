@@ -23,14 +23,6 @@ ENV ZEPPELIN_NOTEBOOK_DIR=$ZEPPELIN_HOME/notebook
 ENV ZEPPELIN_ADDR="0.0.0.0"
 ENV PATH=$PATH:$JAVA_HOME/bin:$ZEPPELIN_HOME/bin:/opt/conda/bin
 
-#ENV Z_VERSION="0.9.0-preview1"
-
-#ENV LOG_TAG="[ZEPPELIN_${Z_VERSION}]:" \
-#    Z_HOME="/opt/zeppelin-0.9.0-preview1-bin-all" \
-#    LANG=en_US.UTF-8 \
-#    LC_ALL=en_US.UTF-8 \
-#    ZEPPELIN_ADDR="0.0.0.0"
-
 RUN echo "$LOG_TAG update and install basic packages" && \
     apt-get -y update && \
     apt-get install -y locales && \
@@ -108,7 +100,7 @@ RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/run
 RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/webapps
 
 ## Need to sort out log4j properties
-## COPY log4j.properties ${Z_HOME}/conf/
+## COPY log4j.properties ${ZEPPELIN_HOME}/conf/
 
 WORKDIR /opt/zeppelin-0.9.0-preview1-bin-all
 
