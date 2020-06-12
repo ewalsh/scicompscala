@@ -16,5 +16,6 @@ libraryDependencies ++= Seq(
     "org.slf4j" % "slf4j-nop" % "1.7.26",
     "org.scalanlp" %% "breeze" % "1.0",
     "org.scalanlp" %% "breeze-natives" % "1.0",
-    "org.scalanlp" %% "breeze-viz" % "1.0"
+    "org.scalanlp" %% "breeze-viz" % "1.0",
+    "com.typesafe.akka" %% "akka-actor" % "2.6.6"
 )
