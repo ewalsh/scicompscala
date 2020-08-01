@@ -15,12 +15,15 @@ RUN apt-get install -y apt-utils iputils-ping nano zip unzip python3 curl wget
 
 RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/jdk-8u231-linux-x64.tar.gz
 RUN tar -xzf jdk-8u231-linux-x64.tar.gz
+RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/spark-3.0.0-bin-hadoop2.7.tgz
+RUN gzip -d spark-3.0.0-bin-hadoop2.7.tgz
+RUN tar -xzf spark-3.0.0-bin-hadoop2.7.tar
 
 ENV JAVA_HOME=/opt/jdk1.8.0_231
+ENV SPARK_HOME=/opt/spark-3.0.0-bin-hadoop2.7
 ENV ZEPPELIN_HOME=/opt/zeppelin-0.9.0-preview1-bin-all
 ENV ZEPPELIN_LOG_DIR=$ZEPPELIN_HOME/logs
 ENV ZEPPELIN_NOTEBOOK_DIR=$ZEPPELIN_HOME/notebook
-ENV ZEPPELIN_ADDR="0.0.0.0"
 ENV PATH=$PATH:$JAVA_HOME/bin:$ZEPPELIN_HOME/bin:/opt/conda/bin
 
 RUN echo "$LOG_TAG update and install basic packages" && \
@@ -93,11 +96,22 @@ RUN echo "$LOG_TAG Cleanup" && \
     apt-get autoclean && \
     apt-get clean
 
-RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/zeppelin-0.9.0-preview1-bin-all.tgz
-RUN tar -xzf zeppelin-0.9.0-preview1-bin-all.tgz
+
 RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/logs
 RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/run
 RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/webapps
+
+RUN echo "$LOG_TAG Download Zeppelin binary" && \
+    wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/zeppelin-0.9.0-preview1-bin-all.tgz && \
+    tar -xzf zeppelin-0.9.0-preview1-bin-all.tgz && \
+    chown -R root:root ${ZEPPELIN_HOME} && \
+    mkdir -p ${ZEPPELIN_HOME}/logs ${ZEPPELIN_HOME}/run ${ZEPPELIN_HOME}/webapps && \
+    # Allow process to edit /etc/passwd, to create a user entry for zeppelin
+    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
+    # Give access to some specific folders
+    chmod -R 775 "${ZEPPELIN_HOME}/logs" "${ZEPPELIN_HOME}/run" "${ZEPPELIN_HOME}/notebook" "${ZEPPELIN_HOME}/conf" && \
+    # Allow process to create new folders (e.g. webapps)
+    chmod 775 ${ZEPPELIN_HOME}
 
 ## Need to sort out log4j properties
 ## COPY log4j.properties ${ZEPPELIN_HOME}/conf/

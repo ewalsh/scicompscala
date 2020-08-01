@@ -5,3 +5,4 @@ null
 target
 *.class
 *.jar
+.env
