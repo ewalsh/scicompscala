@@ -1,30 +1,30 @@
-## This is taken almost entirely from the apache setup below
-## https://hub.docker.com/r/apache/zeppelin/dockerfile
-## I have only made some customization changes
-## for example, ubuntu 18.04, python3, and no use of tini
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-FROM ubuntu:bionic
-MAINTAINER ewalsh200 <ewalsh@economicdatasciences.ai>
+FROM ubuntu:16.04
+MAINTAINER Apache Software Foundation <dev@zeppelin.apache.org>
 
-WORKDIR /opt
+## Adding support for Spark 3.0.0 -- at bottom of file
 
-RUN apt-get clean
-RUN apt-get update -y --fix-missing
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
-RUN apt-get install -y apt-utils iputils-ping nano zip unzip python3 curl wget
+ENV Z_VERSION="0.9.0-preview1"
 
-RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/jdk-8u231-linux-x64.tar.gz
-RUN tar -xzf jdk-8u231-linux-x64.tar.gz
-RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/spark-3.0.0-bin-hadoop2.7.tgz
-RUN gzip -d spark-3.0.0-bin-hadoop2.7.tgz
-RUN tar -xzf spark-3.0.0-bin-hadoop2.7.tar
-
-ENV JAVA_HOME=/opt/jdk1.8.0_231
-ENV SPARK_HOME=/opt/spark-3.0.0-bin-hadoop2.7
-ENV ZEPPELIN_HOME=/opt/zeppelin-0.9.0-preview1-bin-all
-ENV ZEPPELIN_LOG_DIR=$ZEPPELIN_HOME/logs
-ENV ZEPPELIN_NOTEBOOK_DIR=$ZEPPELIN_HOME/notebook
-ENV PATH=$PATH:$JAVA_HOME/bin:$ZEPPELIN_HOME/bin:/opt/conda/bin
+ENV LOG_TAG="[ZEPPELIN_${Z_VERSION}]:" \
+    Z_HOME="/zeppelin" \
+    LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    ZEPPELIN_ADDR="0.0.0.0"
 
 RUN echo "$LOG_TAG update and install basic packages" && \
     apt-get -y update && \
@@ -34,6 +34,19 @@ RUN echo "$LOG_TAG update and install basic packages" && \
     apt -y autoclean && \
     apt -y dist-upgrade && \
     apt-get install -y build-essential
+
+RUN echo "$LOG_TAG install tini related packages" && \
+    apt-get install -y wget curl grep sed dpkg && \
+    TINI_VERSION=`curl https://github.com/krallin/tini/releases/latest | grep -o "/v.*\"" | sed 's:^..\(.*\).$:\1:'` && \
+    curl -L "https://github.com/krallin/tini/releases/download/v${TINI_VERSION}/tini_${TINI_VERSION}.deb" > tini.deb && \
+    dpkg -i tini.deb && \
+    rm tini.deb
+
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+RUN echo "$LOG_TAG Install java8" && \
+    apt-get -y update && \
+    apt-get install -y openjdk-8-jdk && \
+    rm -rf /var/lib/apt/lists/*
 
 # should install conda first before numpy, matploylib since pip and python will be installed by conda
 RUN echo "$LOG_TAG Install miniconda3 related packages" && \
@@ -46,30 +59,31 @@ RUN echo "$LOG_TAG Install miniconda3 related packages" && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
 
+ENV PATH /opt/conda/bin:$PATH
+
 RUN echo "$LOG_TAG Install python related packages" && \
     apt-get -y update && \
-    apt-get install -y python3-dev python3-pip && \
+    apt-get install -y python-dev python-pip && \
     apt-get install -y gfortran && \
     # numerical/algebra packages
-    apt-get install -y libblas-dev libatlas-base-dev liblapack-dev && \
+    apt-get install -y libblas-dev libatlas-dev liblapack-dev && \
     # font, image
     apt-get install -y libpng-dev libfreetype6-dev libxft-dev && \
     # for tkinter
-    apt-get install -y python3-tk libxml2-dev libxslt-dev zlib1g-dev && \
+    apt-get install -y python-tk libxml2-dev libxslt-dev zlib1g-dev && \
     hash -r && \
     conda config --set always_yes yes --set changeps1 no && \
     conda update -q conda && \
     conda info -a && \
     conda config --add channels conda-forge && \
     pip install -q pycodestyle==2.5.0 && \
-    pip install -q numpy==1.17.3 pandas==0.25.0 scipy==1.3.1 grpcio==1.19.0 bkzep==0.6.1 hvplot==0.5.2 protobuf==3.10.0 pandasql==0.7.3 ipython==7.8.0 matplotlib==3.0.3 ipykernel==5.1.2 jupyter_client==5.3.4 bokeh==1.3.4 panel==0.6.0 holoviews==1.12.3 pycodestyle==2.5.0 apache_beam==2.15.0
+    pip install -q numpy==1.17.3 pandas==0.25.0 scipy==1.3.1 grpcio==1.19.0 bkzep==0.6.1 hvplot==0.5.2 protobuf==3.10.0 pandasql==0.7.3 ipython==7.8.0 matplotlib==3.0.3 ipykernel==5.1.2 jupyter_client==5.3.4 bokeh==1.3.4 panel==0.6.0 holoviews==1.12.3 seaborn==0.9.0 plotnine==0.5.1 intake==0.5.3 intake-parquet==0.2.2 altair==3.2.0 pycodestyle==2.5.0 apache_beam==2.15.0
 
 RUN echo "$LOG_TAG Install R related packages" && \
     echo "PATH: $PATH" && \
     ls /opt/conda/bin && \
-    echo "deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/" | tee -a /etc/apt/sources.list && \
-    gpg --keyserver keyserver.ubuntu.com --recv-key E298A3A825C0D65DFD57CBB651716619E084DAB9 && \
-    gpg -a --export E298A3A825C0D65DFD57CBB651716619E084DAB9 | apt-key add - && \
+    echo "deb http://cran.rstudio.com/bin/linux/ubuntu xenial/" | tee -a /etc/apt/sources.list && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 51716619E084DAB9 && \
     apt-get -y update && \
     apt-get -y --allow-unauthenticated install r-base r-base-dev && \
     R -e "install.packages('evaluate', repos = 'https://cloud.r-project.org')" && \
@@ -85,46 +99,38 @@ RUN echo "$LOG_TAG Install R related packages" && \
     R -e "install.packages('Rcpp', repos='http://cran.us.r-project.org')" && \
     Rscript -e "library('devtools'); library('Rcpp'); install_github('ramnathv/rCharts')"
 
-# Install kubectl
-RUN apt-get install -y apt-transport-https && \
-    curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add - && \
-    echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | tee -a /etc/apt/sources.list.d/kubernetes.list && \
-    apt-get update && \
-    apt-get install -y kubectl
-
 RUN echo "$LOG_TAG Cleanup" && \
     apt-get autoclean && \
     apt-get clean
 
-
-RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/logs
-RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/run
-RUN mkdir -p /opt/zeppelin-0.9.0-preview1-bin-all/webapps
-
 RUN echo "$LOG_TAG Download Zeppelin binary" && \
-    wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/zeppelin-0.9.0-preview1-bin-all.tgz && \
-    tar -xzf zeppelin-0.9.0-preview1-bin-all.tgz && \
-    chown -R root:root ${ZEPPELIN_HOME} && \
-    mkdir -p ${ZEPPELIN_HOME}/logs ${ZEPPELIN_HOME}/run ${ZEPPELIN_HOME}/webapps && \
+    wget --quiet -O /tmp/zeppelin-${Z_VERSION}-bin-all.tgz http://archive.apache.org/dist/zeppelin/zeppelin-${Z_VERSION}/zeppelin-${Z_VERSION}-bin-all.tgz && \
+    tar -zxvf /tmp/zeppelin-${Z_VERSION}-bin-all.tgz && \
+    rm -rf /tmp/zeppelin-${Z_VERSION}-bin-all.tgz && \
+    mkdir -p ${Z_HOME} && \
+    mv /zeppelin-${Z_VERSION}-bin-all/* ${Z_HOME}/ && \
+    chown -R root:root ${Z_HOME} && \
+    mkdir -p ${Z_HOME}/logs ${Z_HOME}/run ${Z_HOME}/webapps && \
     # Allow process to edit /etc/passwd, to create a user entry for zeppelin
     chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     # Give access to some specific folders
-    chmod -R 775 "${ZEPPELIN_HOME}/logs" "${ZEPPELIN_HOME}/run" "${ZEPPELIN_HOME}/notebook" "${ZEPPELIN_HOME}/conf" && \
+    chmod -R 775 "${Z_HOME}/logs" "${Z_HOME}/run" "${Z_HOME}/notebook" "${Z_HOME}/conf" && \
     # Allow process to create new folders (e.g. webapps)
-    chmod 775 ${ZEPPELIN_HOME}
+    chmod 775 ${Z_HOME}
 
-## Need to sort out log4j properties
-## COPY log4j.properties ${ZEPPELIN_HOME}/conf/
+COPY log4j.properties ${Z_HOME}/conf/
 
-WORKDIR /opt/zeppelin-0.9.0-preview1-bin-all
-
-RUN addgroup hadoop
-RUN useradd -ms /bin/bash hduser
-RUN usermod -a -G hadoop hduser
-RUN chown -R hduser:hadoop /opt/zeppelin-0.9.0-preview1-bin-all
+USER 1000
 
 EXPOSE 8080
 
-USER hduser
+ENTRYPOINT [ "/usr/bin/tini", "--" ]
 
-CMD ./bin/zeppelin-daemon.sh start && tail -f ./logs/*.log
+WORKDIR /opt
+RUN wget https://econdatasci.s3.eu-west-2.amazonaws.com/dev/spark-3.0.0-bin-hadoop2.7.tgz
+RUN gzip -d spark-3.0.0-bin-hadoop2.7.tgz
+RUN tar -xzf spark-3.0.0-bin-hadoop2.7.tar
+ENV SPARK_HOME=/opt/spark-3.0.0-bin-hadoop2.7
+
+WORKDIR ${Z_HOME}
+CMD ["bin/zeppelin.sh"]
